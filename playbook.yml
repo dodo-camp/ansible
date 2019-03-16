@@ -1,0 +1,55 @@
+---
+- hosts: 103.90.243.46
+  remote_user: root
+  tasks:
+    - name: set mysql container
+      docker_container:
+        image: mysql:5.7
+        name: db
+        volumes:
+          - /root/db_data/:/var/lib/mysql
+        networks:
+          - name: wp
+        env:
+          MYSQL_ROOT_PASSWORD: wordpress
+          MYSQL_DATABASE: wordpress
+          MYSQL_USER: wordpress
+          MYSQL_PASSWORD: wordpress
+
+    - name: set wordpress container
+      docker_container:
+        image: wordpress:latest
+        name: wordpress
+        networks:
+          - name: wp
+            links: db
+        ports:
+          - 8000:80
+        env:
+          WORDPRESS_DB_HOST: db:3306
+          WORDPRESS_DB_NAME: wordpress
+          WORDPRESS_DB_USER: wordpress
+          WORDPRESS_DB_PASSWORD: wordpress
+          WORDPRESS_TABLE_PREFIX: "wp_"
+          WORDPRESS_DEBUG: 1
+        volumes:
+          - /root/wordpress/:/var/www/html
+
+    - name: set wp-cli conatiner
+      docker_container:
+        image: wordpress:cli
+        name: wp-cli-test
+        networks:
+          - name: wp
+            links:
+             - db
+             - wordpress
+        user: xfs
+        command: >
+          /bin/bash -c '
+          sleep 10;
+          wp core install --path="/var/www/html" --url="http://103.90.243.46:8000" --title="Local Wordpress By Docker" --admin_user=admin --admin_password=secret --admin_email=foo@bar.com;
+          wp plugin install classic-editor;
+          '
+        volumes:
+          - /root/wordpress/:/var/www/html
